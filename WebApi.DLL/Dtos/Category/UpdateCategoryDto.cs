@@ -1,8 +1,12 @@
-﻿namespace WebApi.BLL.Dtos.Category
+﻿using Microsoft.AspNetCore.Http;
+
+namespace WebApi.BLL.Dtos.Category
 {
     public class UpdateCategoryDto
     {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+        public required string Id { get; set; }
+        public required string Name { get; set; }
+        public string? Description { get; set; }
+        public IFormFile? Image { get; set; }
     }
 }

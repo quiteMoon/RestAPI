@@ -2,13 +2,19 @@
 
 namespace WebApi.DAL.Entities
 {
-    public class CategoryEntity
+    public class CategoryEntity : BaseEntity<string>
     {
-        [Key]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        [MaxLength(255)]
+        public override string Id { get; set; } = Guid.NewGuid().ToString();
         [Required]
-        public string Name { get; set; } = string.Empty;
+        [MaxLength(255)]
+        public required string Name { get; set; }
+        [Required]
+        [MaxLength(255)]
+        public string? NormalizedName { get; set; }
+        [MaxLength]
+        public string? Description { get; set; }
+        [MaxLength(255)]
+        public string? Image { get; set; }
         public ICollection<ProductEntity> Products { get; set; } = [];
     }
 }

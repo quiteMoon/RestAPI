@@ -4,10 +4,11 @@ namespace WebApi.BLL.Services.Category
 {
     public interface ICategoryService
     {
-        Task<bool> CreateAsync(CreateCategoryDto dto);
-        Task<bool> UpdateAsync(UpdateCategoryDto dto);
-        Task<bool> DeleteAsync(string id);
-        Task<CategoryDto?> GetByIdAsync(string id);
-        Task<IEnumerable<CategoryDto>> GetAllAsync();
+        Task<ServiceResponse> CreateAsync(CreateCategoryDto dto);
+        Task<ServiceResponse> UpdateAsync(UpdateCategoryDto dto);
+        Task<ServiceResponse> DeleteAsync(string id);
+        Task<ServiceResponse> GetAllAsync();
+        Task<ServiceResponse> GetByIdAsync(string id);
+        Task<ServiceResponse> GetByNameAsync(string name);
     }
 }

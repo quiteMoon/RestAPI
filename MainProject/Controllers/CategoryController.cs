@@ -5,7 +5,7 @@ using WebApi.BLL.Services.Category;
 namespace WebApi.Controllers
 {
     [ApiController]
-    [Route("api/caterogy")]
+    [Route("api/categories")]
     public class CategoryController : Controller
     {
         private readonly ICategoryService _categoryService;
@@ -16,13 +16,22 @@ namespace WebApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAsync(string? id)
+        public async Task<IActionResult> GetAsync(string? id, string? name)
         {
-            if (string.IsNullOrEmpty(id))
-                return NotFound();
+            if (!string.IsNullOrEmpty(id))
+            {
+                var responseId = await _categoryService.GetByIdAsync(id);
+                return responseId.IsSuccess ? Ok(responseId) : BadRequest(responseId);
+            }
 
-            var result = await _categoryService.GetByIdAsync(id);
-            return result != null ? Ok(result) : BadRequest("Category not found");
+            if (!string.IsNullOrEmpty(name))
+            {
+                var responseName = await _categoryService.GetByNameAsync(name);
+                return responseName.IsSuccess ? Ok(responseName) : BadRequest(responseName);
+            }
+
+            var response = await _categoryService.GetAllAsync();
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpGet("list")]
@@ -35,15 +44,15 @@ namespace WebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateAsync(CreateCategoryDto dto)
         {
-            var result = await _categoryService.CreateAsync(dto);
-            return result ? Ok("Categoty created") : BadRequest("Category not created");
+            var response = await _categoryService.CreateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpPut]
         public async Task<IActionResult> UpdateAsync(UpdateCategoryDto dto)
         {
-            var result = await _categoryService.UpdateAsync(dto);
-            return result ? Ok("Category updated") : BadRequest("Category not updated");
+            var response = await _categoryService.UpdateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpDelete]
@@ -52,8 +61,8 @@ namespace WebApi.Controllers
             if (string.IsNullOrEmpty(id))
                 return NotFound();
 
-            var result = await _categoryService.DeleteAsync(id);
-            return result ? Ok("Category delete") : BadRequest("Category not created");
+            var response = await _categoryService.DeleteAsync(id);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
     }
 }

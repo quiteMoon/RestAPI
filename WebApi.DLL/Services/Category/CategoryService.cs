@@ -1,83 +1,131 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using WebApi.BLL.Dtos.Category;
-using WebApi.DAL;
+using WebApi.BLL.Services.Image;
 using WebApi.DAL.Entities;
+using WebApi.DAL.Repositories.Category;
 
 namespace WebApi.BLL.Services.Category
 {
     public class CategoryService : ICategoryService
     {
-        private readonly AppDbContext _context;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly IImageService _imageService;
+        private readonly IMapper _mapper;
 
-        public CategoryService(AppDbContext context)
+        public CategoryService(ICategoryRepository categoryRepository, IMapper mapper, IImageService imageService)
         {
-            _context = context;
+            _categoryRepository = categoryRepository;
+            _mapper = mapper;
+            _imageService = imageService;
         }
 
-        public async Task<bool> CreateAsync(CreateCategoryDto dto)
+        public async Task<ServiceResponse> CreateAsync(CreateCategoryDto dto)
         {
-            var entity = new CategoryEntity
+            if(!_categoryRepository.IsUniqueName(dto.Name))
+                return ServiceResponse.Error($"Категорія з іменем '{dto.Name}' вже існує");
+
+            var entity = _mapper.Map<CategoryEntity>(dto);
+
+            if(dto.Image != null)
             {
-                Name = dto.Name
-            };
+                string? imageName = await _imageService.SaveImageAsync(dto.Image, Settings.CategoriesDir);
 
-            await _context.Categories.AddAsync(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+                if(!string.IsNullOrEmpty(imageName))
+                    entity.Image = Settings.CategoriesDir + "/" + imageName;
+            }
+
+            entity.NormalizedName = entity.Name.ToUpper();
+            bool result = await _categoryRepository.CreateAsync(entity);
+
+            if (result)
+                return ServiceResponse.Success("Категорію успішно додано");
+
+            return ServiceResponse.Error("Не вдалося додати категорію");
         }
 
-        public async Task<bool> DeleteAsync(string id)
+        public async Task<ServiceResponse> DeleteAsync(string id)
         {
-            var entity = await _context.Categories.FirstOrDefaultAsync(e => e.Id == id);
+            var entity = await _categoryRepository.GetByIdAsync(id);
 
             if (entity == null)
-                return false;
+                return ServiceResponse.Error($"Категорію з id '{id}' не знайдено");
 
-            _context.Categories.Remove(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+            if (!string.IsNullOrEmpty(entity.Image))
+                _imageService.DeleteImage(entity.Image);
+
+            bool result = await _categoryRepository.DeleteAsync(entity);
+
+            if (result)
+                return ServiceResponse.Success("Категорію успішно видалено");
+
+            return ServiceResponse.Error("Не вдалося видалити категорію");
         }
 
-        public async Task<IEnumerable<CategoryDto>> GetAllAsync()
+        public async Task<ServiceResponse> GetAllAsync()
         {
-            var entities = await _context.Categories.ToListAsync();
+            var entities = await _categoryRepository
+                .GetAll()
+                .ToListAsync();
 
-            var dtos = entities.Select(e => new CategoryDto
-            {
-                Id = e.Id,
-                Name = e.Name
-            });
+            var dtos = _mapper.Map<List<CategoryDto>>(entities);
 
-            return dtos;
+            return ServiceResponse.Success("Катогорії отримано", dtos);
         }
 
-        public async Task<CategoryDto?> GetByIdAsync(string id)
+        public async Task<ServiceResponse> GetByIdAsync(string id)
         {
-            var entity = await _context.Categories.FirstOrDefaultAsync(e => e.Id == id);
+            var entity = await _categoryRepository.GetByIdAsync(id);
 
             if (entity == null)
-                return null;
+                return ServiceResponse.Error("Категорію не знайдено");
 
-            var dto = new CategoryDto
-            {
-                Id = entity.Id,
-                Name = entity.Name
-            };
+            var dto = _mapper.Map<CategoryDto>(entity);
 
-            return dto;
+            return ServiceResponse.Success($"Категорію {dto.Name} отримано", dto);
         }
 
-        public async Task<bool> UpdateAsync(UpdateCategoryDto dto)
+        public async Task<ServiceResponse> GetByNameAsync(string name)
         {
-            var entity = new CategoryEntity
-            {
-                Id = dto.Id,
-                Name = dto.Name
-            };
+            var entity = await _categoryRepository.GetByNameAsync(name);
 
-            _context.Categories.Update(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+            if (entity == null)
+                return ServiceResponse.Error($"Категорію з іменем '{name}' не знайдено");
+
+            var dto = _mapper.Map<CategoryDto>(entity);
+
+            return ServiceResponse.Success($"Категорію '{dto.Name}' отримано", dto);
+        }
+
+        public async Task<ServiceResponse> UpdateAsync(UpdateCategoryDto dto)
+        {
+            if (!_categoryRepository.IsUniqueName(dto.Name))
+                return ServiceResponse.Error($"Категорія з іменем '{dto.Name}' вже існує");
+
+            var entity = await _categoryRepository.GetByIdAsync(dto.Id);
+
+            if (entity == null)
+                return ServiceResponse.Error($"Категорію з id '{dto.Id}' не знайдено");
+
+            entity = _mapper.Map(dto, entity);
+
+            if(dto.Image != null)
+            {
+                string? imageName = await _imageService.SaveImageAsync(dto.Image, Settings.CategoriesDir);
+
+                if(!string.IsNullOrEmpty(entity.Image))
+                {
+                    _imageService.DeleteImage(entity.Image);
+                }
+                entity.Image = Settings.CategoriesDir + "/" + imageName;
+            }
+
+            bool result = await _categoryRepository.UpdateAsync(entity);
+
+            if (result)
+                return ServiceResponse.Success("Категорію успішно оновлено");
+
+            return ServiceResponse.Error("Не вдалося оновити категорію");
         }
     }
 }

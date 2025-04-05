@@ -6,7 +6,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/product")]
-    public class ProductController : ControllerBase
+    public class ProductController : Controller
     {
         private readonly IProductService _productService;
 
@@ -15,35 +15,45 @@ namespace WebApi.Controllers
             _productService = productService;
         }
 
-        [HttpGet("list")]
-        public async Task<IActionResult> GetAllAsync()
-        {
-            var result = await _productService.GetAllAsync();
-            return Ok(result);
-        }
-
         [HttpGet]
         public async Task<IActionResult> GetAsync(string? id)
         {
             if (string.IsNullOrEmpty(id))
                 return NotFound();
 
-            var result = await _productService.GetByIdAsync(id);
-            return result != null ? Ok(result) : BadRequest("Product not found");
+            var response = await _productService.GetByIdAsync(id);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpGet("category")]
+        public IActionResult GetByCategoryAsync(string? name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return NotFound();
+
+            var response = _productService.GetByCategory(name);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpGet("list")]
+        public async Task<IActionResult> GetAllAsync()
+        {
+            var response = await _productService.GetAllAsync();
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateAsync(CreateProductDto dto)
         {
-            var result = await _productService.CreateAsync(dto);
-            return result ? Ok("Product created") : BadRequest("Product not created"); 
+            var response = await _productService.CreateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpPut]
         public async Task<IActionResult> UpdateAsync(UpdateProductDto dto)
         {
-            var result = await _productService.UpdateAsync(dto);
-            return result ? Ok("Product updated") : BadRequest("Product not updated");
+            var response = await _productService.UpdateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpDelete]
@@ -52,8 +62,8 @@ namespace WebApi.Controllers
             if (string.IsNullOrEmpty(id))
                 return NotFound();
 
-            var result = await _productService.DeleteAsync(id);
-            return result ? Ok("Product deleted") : BadRequest("Product not deleted");
+            var response = await _productService.DeleteAsync(id);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
     }
 }

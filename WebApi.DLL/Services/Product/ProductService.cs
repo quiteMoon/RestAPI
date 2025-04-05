@@ -1,97 +1,137 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using WebApi.BLL.Dtos.Product;
-using WebApi.DAL;
+using WebApi.BLL.Services.Image;
 using WebApi.DAL.Entities;
+using WebApi.DAL.Repositories.Category;
+using WebApi.DAL.Repositories.Product;
 
 namespace WebApi.BLL.Services.Product
 {
     public class ProductService : IProductService
     {
-        private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
+        private readonly IProductRepository _productRepository;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly IImageService _imageService;
 
-        public ProductService(AppDbContext context)
+        public ProductService(IMapper mapper, IProductRepository productRepository, ICategoryRepository categoryRepository, IImageService imageService)
         {
-            _context = context;
+            _mapper = mapper;
+            _productRepository = productRepository;
+            _categoryRepository = categoryRepository;
+            _imageService = imageService;
         }
 
-        public async Task<bool> CreateAsync(CreateProductDto dto)
+        public async Task<ServiceResponse> CreateAsync(CreateProductDto dto)
         {
-            var entity = new ProductEntity
+            var entity = _mapper.Map<ProductEntity>(dto);
+
+            if (dto.Images.Count > 0)
             {
-                Name = dto.Name,
-                Amount = dto.Amount,
-                Description = dto.Description,
-                Price = dto.Price
-            };
+                string dirPath = Path.Combine(Settings.ProductsDir, entity.Id);
 
-            await _context.Products.AddAsync(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+                var imagesName = await _imageService.SaveProductImages(dto.Images, dirPath);
+
+                var imageEntities = imagesName.Select(i =>
+                    new ProductImageEntity
+                    {
+                        Name = i,
+                        Path = dirPath,
+                        ProductId = entity.Id
+                    });
+
+                entity.Images = imageEntities.ToArray();
+            }
+
+            var categories = _categoryRepository
+                .GetAll()
+                .Where(c => dto.Categories.Select(x => x.ToUpper()).Contains(c.NormalizedName))
+                .ToList();
+
+            entity.Categories = categories;
+
+            bool result = await _productRepository.CreateAsync(entity);
+
+            if(result)
+                return ServiceResponse.Success($"Товар '{dto.Name}' створено успішно");
+
+            return ServiceResponse.Error("Помилка під час створення");
         }
 
-        public async Task<bool> DeleteAsync(string id)
+        public async Task<ServiceResponse> DeleteAsync(string id)
         {
-            var entity = await _context.Products
-                .FirstOrDefaultAsync(e => e.Id == id);
+            var entity = await _productRepository.GetByIdAsync(id);
 
             if (entity == null)
-                return false;
+                return ServiceResponse.Error("Не вдалося видалити продукт");
 
-            _context.Products.Remove(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
-        }
-
-        public async Task<IEnumerable<ProductDto>> GetAllAsync()
-        {
-            var entities = await _context.Products.ToListAsync();
-
-            var dtos = entities.Select(e => new ProductDto
+            if (entity.Images.Count > 0)
             {
-                Id = e.Id,
-                Name = e.Name,
-                Description = e.Description,
-                Amount = e.Amount,
-                Price = e.Price
-            });
+                _imageService.DeleteImage(Path.Combine(Settings.ProductsDir, entity.Id));
+            }
 
-            return dtos;
+            bool result = await _productRepository.DeleteAsync(entity);
+
+            if (result)
+                return ServiceResponse.Success("Продукт успішно видалено");
+
+            return ServiceResponse.Error("Не вдалося видалити продукт");
         }
 
-        public async Task<ProductDto?> GetByIdAsync(string id)
+        public async Task<ServiceResponse> GetAllAsync()
         {
-            var entity = await _context.Products
-                .FirstOrDefaultAsync(e => e.Id == id);
+            var entities = await _productRepository
+                .GetAll()
+                .Include(p => p.Categories)
+                .Include(p => p.Images)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var dtos = _mapper.Map<List<ProductDto>>(entities);
+
+            return ServiceResponse.Success("Товари отримано", dtos);
+        }
+
+        public ServiceResponse GetByCategory(string name)
+        {
+            var entities = _productRepository.GetByCategory(name);
+
+            if (entities == null)
+                return ServiceResponse.Error($"Продукти з категорією {name} не знайдено");
+
+            var dtos = _mapper.Map<List<ProductDto>>(entities);
+
+            return ServiceResponse.Success("Продукти успішно отримано", dtos);
+        }
+
+        public async Task<ServiceResponse> GetByIdAsync(string id)
+        {
+            var entity = await _productRepository.GetByIdAsync(id);
 
             if (entity == null)
-                return null;
+                return ServiceResponse.Error("Продукт не знайдено");
 
-            var dto = new ProductDto
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Amount = entity.Amount,
-                Price = entity.Price,
-                Description = entity.Description
-            };
+            var dto = _mapper.Map<ProductDto>(entity);
 
-            return dto;
+            return ServiceResponse.Success("Продукт отримано", dto);
         }
 
-        public async Task<bool> UpdateAsync(UpdateProductDto dto)
+        public async Task<ServiceResponse> UpdateAsync(UpdateProductDto dto)
         {
-            var entity = new ProductEntity
-            {
-                Id = dto.Id,
-                Name = dto.Name,
-                Amount = dto.Amount,
-                Description = dto.Description,
-                Price = dto.Price
-            };
+            var entity = await _productRepository.GetByIdAsync(dto.Id);
 
-            _context.Products.Update(entity);
-            var result = await _context.SaveChangesAsync();
-            return result > 0;
+            if (entity == null)
+                return ServiceResponse.Error("Продукт не знайдено");
+
+            entity = _mapper.Map(dto, entity);
+
+            bool result = await _productRepository.UpdateAsync(entity);
+
+            if (result)
+                return ServiceResponse.Success("Продукт успішно оновлено");
+
+            return ServiceResponse.Error("Не вдалося видалити продукт");
         }
     }
 }

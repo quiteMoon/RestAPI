@@ -1,4 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using System.Net;
+using System.Net.Mail;
 using WebApi.BLL.Dtos.Account;
 using WebApi.BLL.Services.User;
 using WebApi.DAL.Entities.Identity;
@@ -9,7 +12,7 @@ namespace WebApi.BLL.Services.Account
     {
         private readonly UserManager<AppUser> _userManager;
 
-        public AccountService(UserManager<AppUser> userManager)
+        public AccountService(UserManager<AppUser> userManager, IConfiguration configuration)
         {
             _userManager = userManager;
         }

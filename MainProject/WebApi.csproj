@@ -20,4 +20,9 @@
     <ProjectReference Include="..\WebApi.DLL\WebApi.BLL.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\templates\" />
+  </ItemGroup>
+
 </Project>
