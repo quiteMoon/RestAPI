@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using WebApi.BLL.Dtos.Product;
 using WebApi.BLL.Services.Product;
+using WebApi.BLL.Validators.Category;
+using WebApi.BLL.Validators.Product;
 
 namespace WebApi.Controllers
 {
@@ -9,10 +12,14 @@ namespace WebApi.Controllers
     public class ProductController : Controller
     {
         private readonly IProductService _productService;
+        private readonly CreateProductValidator _createProductValidator;
+        private readonly UpdateProductValidator _updateProductValidator;
 
-        public ProductController(IProductService productService)
+        public ProductController(IProductService productService, CreateProductValidator createProductValidator, UpdateProductValidator updateProductValidator)
         {
             _productService = productService;
+            _createProductValidator = createProductValidator;
+            _updateProductValidator = updateProductValidator;
         }
 
         [HttpGet]
@@ -45,6 +52,11 @@ namespace WebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateAsync(CreateProductDto dto)
         {
+            var validResult = await _createProductValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
             var response = await _productService.CreateAsync(dto);
             return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
@@ -52,6 +64,11 @@ namespace WebApi.Controllers
         [HttpPut]
         public async Task<IActionResult> UpdateAsync(UpdateProductDto dto)
         {
+            var validResult = await _updateProductValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
             var response = await _productService.UpdateAsync(dto);
             return response.IsSuccess ? Ok(response) : BadRequest(response);
         }

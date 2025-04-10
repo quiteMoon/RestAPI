@@ -14,7 +14,7 @@ namespace WebApi.BLL.Services.Role
             _roleManager = roleManager;
         }
 
-        public async Task<bool> CreateAsync(CreateRoleDto dto)
+        public async Task<ServiceResponse> CreateAsync(CreateRoleDto dto)
         {
             var entity = new AppRole
             {
@@ -22,21 +22,29 @@ namespace WebApi.BLL.Services.Role
             };
 
             var result = await _roleManager.CreateAsync(entity);
-            return result.Succeeded;
+
+            if (result.Succeeded)
+                return ServiceResponse.Success($"Роль '{dto.Name}' успішно створено");
+
+            return ServiceResponse.Error("Помилка при створенні ролі");
         }
 
-        public async Task<bool> DeleteAsync(string id)
+        public async Task<ServiceResponse> DeleteAsync(string id)
         {
             var entity = await _roleManager.FindByIdAsync(id);
 
             if (entity == null)
-                return false;
+                return ServiceResponse.Error("Роль не знайдено");
 
             var result = await _roleManager.DeleteAsync(entity);
-            return result.Succeeded;
+
+            if (result.Succeeded)
+                return ServiceResponse.Success($"Роль '{entity.Name}' успішно видалено");
+
+            return ServiceResponse.Error("Помилка при видаленні");
         }
 
-        public async Task<IEnumerable<RoleDto>> GetAllAsync()
+        public async Task<ServiceResponse> GetAllAsync()
         {
             var entities = await _roleManager.Roles.ToListAsync();
 
@@ -46,15 +54,15 @@ namespace WebApi.BLL.Services.Role
                 Name = e.Name ?? "Noname"
             });
 
-            return dtos;
+            return ServiceResponse.Success("Ролі отримано", dtos);
         }
 
-        public async Task<RoleDto?> GetByIdAsync(string id)
+        public async Task<ServiceResponse> GetByIdAsync(string id)
         {
             var entity = await _roleManager.FindByIdAsync(id);
 
             if(entity == null)
-                return null;
+                return ServiceResponse.Error("Роль не знайдено");
 
             var dto = new RoleDto
             {
@@ -62,10 +70,10 @@ namespace WebApi.BLL.Services.Role
                 Name = entity.Name ?? "Noname"
             };
 
-            return dto;
+            return ServiceResponse.Success("Роль отримано успішно", dto);
         }
 
-        public async Task<bool> UpdateAsync(UpdateRoleDto dto)
+        public async Task<ServiceResponse> UpdateAsync(UpdateRoleDto dto)
         {
             var entity = new AppRole
             {
@@ -74,7 +82,11 @@ namespace WebApi.BLL.Services.Role
             };
 
             var result = await _roleManager.UpdateAsync(entity);
-            return result.Succeeded;
+
+            if (result.Succeeded)
+                return ServiceResponse.Success($"Роль '{entity.Name}' успішно оновлено");
+
+            return ServiceResponse.Error("Помилка при оновленні");
         }
     }
 }

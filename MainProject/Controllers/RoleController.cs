@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using WebApi.BLL.Dtos.Role;
 using WebApi.BLL.Services.Role;
+using WebApi.BLL.Validators.Role;
 
 namespace WebApi.Controllers
 {
@@ -9,24 +10,38 @@ namespace WebApi.Controllers
     public class RoleController : Controller
     {
         private readonly IRoleService _roleService;
+        private readonly UpdateRoleValidator _updateRoleValidator;
+        private readonly CreateRoleValidator _createRoleValidator;
 
-        public RoleController(IRoleService roleService)
+        public RoleController(IRoleService roleService, UpdateRoleValidator updateRoleValidator, CreateRoleValidator createRoleValidator)
         {
             _roleService = roleService;
+            _updateRoleValidator = updateRoleValidator;
+            _createRoleValidator = createRoleValidator;
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateAsync(CreateRoleDto dto)
         {
-            var result = await _roleService.CreateAsync(dto);
-            return result ? Ok("Role created") : BadRequest("Role not created");
+            var validResult = await _createRoleValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
+            var response = await _roleService.CreateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpPut]
         public async Task<IActionResult> UpdateAsync(UpdateRoleDto dto)
         {
-            var result = await _roleService.UpdateAsync(dto);
-            return result ? Ok("Role updated") : BadRequest("Role not updated");
+            var validResult = await _updateRoleValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
+            var response = await _roleService.UpdateAsync(dto);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpDelete]
@@ -35,8 +50,8 @@ namespace WebApi.Controllers
             if (string.IsNullOrEmpty(id))
                 return NotFound();
 
-            var result = await _roleService.DeleteAsync(id);
-            return result ? Ok("Role deleted") : BadRequest("Role not deleted");
+            var response = await _roleService.DeleteAsync(id);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpGet]
@@ -45,16 +60,16 @@ namespace WebApi.Controllers
             if (string.IsNullOrEmpty(id))
                 return NotFound();
 
-            var result = await _roleService.GetByIdAsync(id);
+            var response = await _roleService.GetByIdAsync(id);
 
-            return result != null ? Ok(result) : BadRequest("Role not found");
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpGet("list")]
         public async Task<IActionResult> GetAllAsync()
         {
-            var result = await _roleService.GetAllAsync();
-            return Ok(result);
+            var response = await _roleService.GetAllAsync();
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
     }
 }

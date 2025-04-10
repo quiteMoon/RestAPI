@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using WebApi.BLL.Dtos.Category;
 using WebApi.BLL.Services.Category;
+using WebApi.BLL.Validators.Category;
 
 namespace WebApi.Controllers
 {
@@ -9,10 +10,14 @@ namespace WebApi.Controllers
     public class CategoryController : Controller
     {
         private readonly ICategoryService _categoryService;
+        private readonly CreateCategoryValidator _createCategoryValidator;
+        private readonly UpdateCategoryValidator _updateCategoryValidator;
 
-        public CategoryController(ICategoryService categoryService)
+        public CategoryController(ICategoryService categoryService, CreateCategoryValidator createCategoryValidator, UpdateCategoryValidator updateCategoryValidator)
         {
             _categoryService = categoryService;
+            _createCategoryValidator = createCategoryValidator;
+            _updateCategoryValidator = updateCategoryValidator;
         }
 
         [HttpGet]
@@ -44,6 +49,11 @@ namespace WebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateAsync(CreateCategoryDto dto)
         {
+            var validResult = await _createCategoryValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
             var response = await _categoryService.CreateAsync(dto);
             return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
@@ -51,6 +61,11 @@ namespace WebApi.Controllers
         [HttpPut]
         public async Task<IActionResult> UpdateAsync(UpdateCategoryDto dto)
         {
+            var validResult = await _updateCategoryValidator.ValidateAsync(dto);
+
+            if (!validResult.IsValid)
+                return BadRequest(validResult.Errors);
+
             var response = await _categoryService.UpdateAsync(dto);
             return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
