@@ -1,12 +1,17 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using WebApi.BLL;
+using WebApi.BLL.Configuration;
 using WebApi.BLL.Services.Account;
 using WebApi.BLL.Services.Category;
 using WebApi.BLL.Services.EmailService;
 using WebApi.BLL.Services.Image;
+using WebApi.BLL.Services.JwtTokenService;
 using WebApi.BLL.Services.Product;
 using WebApi.BLL.Services.Role;
 using WebApi.BLL.Services.User;
@@ -29,7 +34,8 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IImageService, ImageService>();
-//builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
 
@@ -43,8 +49,35 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql("name=PostgresLocal");
 });
 
-//var emailSection = builder.Configuration.GetSection("EmailSettings");
-//builder.Services.Configure<EmailSettings>(emailSection);
+string secretKey = builder.Configuration["JwtSettings:SecretKey"] 
+    ?? throw new ArgumentNullException("jwt secret key is null");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            RequireExpirationTime = true,
+            ClockSkew = TimeSpan.Zero,
+            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        };
+    });
+
+var emailSection = builder.Configuration.GetSection("EmailSettings");
+builder.Services.Configure<EmailSettings>(emailSection);
+
+var jwtSection = builder.Configuration.GetSection("JwtSettings");
+builder.Services.Configure<JwtSettings>(jwtSection);
 
 builder.Services
     .AddIdentity<AppUser, AppRole>(options =>
@@ -77,6 +110,7 @@ string wwwroot = Path.Combine(rootPath, "wwwroot");
 string imagesPath = Path.Combine(wwwroot, "images");
 
 Settings.ImagePath = imagesPath;
+Settings.RootPath = wwwroot;
 
 if (!Directory.Exists(wwwroot))
     Directory.CreateDirectory(wwwroot);
@@ -92,6 +126,7 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

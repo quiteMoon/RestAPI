@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 using WebApi.BLL.Dtos.Account;
 using WebApi.BLL.Dtos.AppUser;
-using WebApi.BLL.Services.Account;
 using WebApi.BLL.Services.Image;
 using WebApi.DAL.Entities.Identity;
 
@@ -12,13 +10,11 @@ namespace WebApi.BLL.Services.User
     public class UserService : IUserService
     {
         private readonly UserManager<AppUser> _userManager;
-        private readonly IAccountService _accountService;
         private readonly IImageService _imageService;
 
-        public UserService(UserManager<AppUser> userManager, IAccountService accountService, IImageService imageService)
+        public UserService(UserManager<AppUser> userManager, IImageService imageService)
         {
             _userManager = userManager;
-            _accountService = accountService;
             _imageService = imageService;
         }
 
@@ -50,17 +46,7 @@ namespace WebApi.BLL.Services.User
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (result.Succeeded)
-            {
-                string token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                byte[] bytes = Encoding.UTF8.GetBytes(token);
-                token = Convert.ToBase64String(bytes);
-
-
-                //await _accountService.SendEmailAsync(user.Email, "Підтвердження пошти", "");
-
                 return ServiceResponse.Success($"Користувача '{user.UserName}' успішно створнео");
-            }
-
 
             return ServiceResponse.Error("Помилка при створенні");
         }

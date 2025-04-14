@@ -1,8 +1,7 @@
-﻿using FluentValidation;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 using WebApi.BLL.Dtos.Account;
 using WebApi.BLL.Services.Account;
-using WebApi.BLL.Services.User;
 using WebApi.BLL.Validators.Account;
 
 namespace WebApi.Controllers
@@ -12,14 +11,12 @@ namespace WebApi.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAccountService _accountService;
-        private readonly IUserService _userService;
         private readonly RegisterValidator _registerValidator;
         private readonly LoginValidator _loginValidator;
 
-        public AccountController(IAccountService accountService, IUserService userService, RegisterValidator registerValidator, LoginValidator loginValidator)
+        public AccountController(IAccountService accountService, RegisterValidator registerValidator, LoginValidator loginValidator)
         {
             _accountService = accountService;
-            _userService = userService;
             _registerValidator = registerValidator;
             _loginValidator = loginValidator;
         }
@@ -32,12 +29,9 @@ namespace WebApi.Controllers
             if (!validResult.IsValid)
                 return BadRequest(validResult.Errors);
 
-            var user = await _userService.CreateAsync(dto);
+            var response = await _accountService.RegisterAsync(dto);
 
-            if (user == null)
-                return BadRequest("Register error");
-
-            return Ok(user);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpPost("login")]
@@ -48,17 +42,19 @@ namespace WebApi.Controllers
             if (!validResult.IsValid)
                 return BadRequest(validResult.Errors);
 
-            var user = await _accountService.LoginAsync(dto);
+            var response = await _accountService.LoginAsync(dto);
 
-            if (user == null)
-                return BadRequest("User not found");
-
-            return Ok(user);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         [HttpGet("confirmEmail")]
-        public IActionResult ConfirmEmail(string? userId, string? token)
+        public async Task<IActionResult> ConfirmEmail(string? userId, string? token)
         {
+            if (userId == null || token == null)
+                return BadRequest("UserId or token is null");
+
+            var response = await _accountService.ConfirmEmailAsync(userId, token);
+
             return Redirect("");
         }
     }
